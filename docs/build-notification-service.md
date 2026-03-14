@@ -139,7 +139,7 @@ After a cascading failure fault deactivates the Payment Service, `payment-queue`
 ## Implementation Notes
 
 - The fan-out simulation is implemented by having the queue maintain a separate "read pointer" per consumer. Each consumer's pointer advances independently when messages are deleted. This mimics the SNS → separate SQS queue pattern without requiring actual message duplication.
-- Notification's processing is entirely no-op (no real HTTP call, no real email). The delay is simulated with `sleep()`.
+- Notification's processing is entirely no-op (no real HTTP call, no real email). The delay is simulated with `time.Sleep()`.
 - The `notification-dlq` has no consumer. Messages accumulate indefinitely until the simulator is reset. This is intentional — it models real production DLQs that nobody drains.
 - The Notification Service is intentionally lower-fidelity than Payment and Fulfillment. It doesn't need deep retry logic because its role in the demo is to show DLQ patterns, not processing patterns.
 

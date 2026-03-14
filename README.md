@@ -21,25 +21,27 @@ This project is intended as a portfolio demonstration for engineers evaluating d
 
 ## How to Run
 
-> Prerequisites: Node.js 20+, pnpm 8+
+> Prerequisites: Go 1.22+, Node.js 20+, pnpm 8+
 
 ```bash
 # Clone the repo
 git clone https://github.com/your-username/watchtower.git
 cd watchtower
 
-# Install all workspace dependencies
+# Install dashboard dependencies
 pnpm install
 
 # Start the simulator (generates metrics, writes to SQLite)
-pnpm --filter simulator dev
+go run ./cmd/simulator
 
-# In a second terminal, start the monitor + dashboard
-pnpm --filter monitor dev
+# In a second terminal, start the monitor
+go run ./cmd/monitor
+
+# In a third terminal, start the dashboard
 pnpm --filter dashboard dev
 
 # Or, run everything together
-pnpm dev
+make dev
 ```
 
 The dashboard will be available at `http://localhost:3000`.
@@ -65,10 +67,9 @@ The simulator starts automatically. Click **Inject Fault** in the dashboard to t
 
 | Layer | Choice |
 |---|---|
-| Monorepo | pnpm workspaces |
+| Simulator & Monitor | Go 1.22+, `modernc.org/sqlite` (pure Go, no CGO) |
 | Frontend | Next.js 14+, TypeScript, Tailwind CSS |
-| Backend / Simulator | Node.js, TypeScript |
-| Storage | SQLite via `better-sqlite3` |
+| Storage | SQLite (`watchtower.db`) — shared between simulator and monitor |
 | Charts | Recharts |
 | Real-time updates | Server-Sent Events (SSE) |
 | AWS SDK | In-process fakes (no real AWS required) |

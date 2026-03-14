@@ -2,13 +2,13 @@
 
 ## Overview
 
-Watchtower is split into three pnpm workspace packages that run as separate processes but share a single SQLite database file:
+Watchtower is split into three components that run as separate processes but share a single SQLite database file:
 
-| Package | Role |
-|---|---|
-| `packages/simulator` | In-process workers that simulate the microservice topology and write metrics to SQLite |
-| `packages/monitor` | Polling loop, anomaly detection, and correlation engine — reads metrics from SQLite, writes incidents |
-| `packages/dashboard` | Next.js frontend — reads from the monitor's HTTP API and renders the live UI |
+| Component | Language | Role |
+|---|---|---|
+| `cmd/simulator` | Go | Goroutine-based workers that simulate the microservice topology and write metrics to SQLite |
+| `cmd/monitor` | Go | Polling ticker, anomaly detection, and correlation engine — reads metrics from SQLite, writes incidents, serves HTTP API |
+| `dashboard/` | TypeScript / Next.js | Frontend — reads from the monitor's HTTP API and renders the live UI |
 
 The simulator and monitor are intentionally decoupled. The simulator's only job is to produce realistic metric data. The monitor's only job is to interpret it. This separation means the correlation engine can be tested independently against recorded metric traces without needing the simulator running.
 
@@ -58,7 +58,7 @@ The simulator and monitor are intentionally decoupled. The simulator's only job 
                │  Polling loop (2s)         │
                │  Anomaly detector          │
                │  Correlation engine        │
-               │  HTTP API (Express)        │
+               │  HTTP API (net/http)       │
                └─────────────┬─────────────┘
                              │ HTTP / SSE
                ┌─────────────▼─────────────┐
@@ -80,7 +80,7 @@ This was a deliberate choice. An event bus or shared memory approach would coupl
 - The database file can be committed to the repo as a fixture for demo purposes
 - There is no message serialization format to maintain
 
-The only constraint is that both processes must agree on the database schema, which is defined once in `packages/shared/schema.ts` and applied by the simulator at startup via migration.
+The only constraint is that both processes must agree on the database schema, which is defined once in `internal/db/schema.go` and applied by the simulator at startup via migration.
 
 ---
 

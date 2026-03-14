@@ -82,7 +82,7 @@ The retry counter is tracked in an in-memory `Map<messageId, attemptCount>`. Thi
 
 ## Timeout Handling
 
-The downstream timeout fault injects `processingDelayMs = 8000` into the Payment Service's fault context. The service simulates this by calling `await sleep(processingDelayMs)` inside the processing step.
+The downstream timeout fault injects `processingDelayMs = 8000` into the Payment Service's fault context. The service simulates this by calling `time.Sleep(time.Duration(processingDelayMs) * time.Millisecond)` inside the processing goroutine.
 
 Because each processing tick holds an "in-flight" lock on the messages it picked up, the effect is:
 - The Payment Service appears to be working (it has messages in flight)
@@ -164,9 +164,9 @@ The `payment-dlq` queue is a standard queue with no consumer (in production, a D
 
 ## Implementation Notes
 
-- The Payment Service runs a processing loop with `setInterval` at ~100ms ticks, polling up to 5 messages per tick (effective throughput: up to 50 messages/s, well above normal load)
-- The processing delay simulation uses `Promise`-based `sleep()` so it doesn't block the event loop; other services continue operating normally during a timeout fault
-- The in-flight message map is bounded to prevent unbounded growth during sustained fault scenarios
+- The Payment Service runs a goroutine driven by a `time.NewTicker` at ~100ms ticks, polling up to 5 messages per tick (effective throughput: up to 50 messages/s, well above normal load)
+- The processing delay simulation calls `time.Sleep()` inside the per-message goroutine so it doesn't block other service tickers; all services run in independent goroutines
+- The in-flight message map (`map[string]int` keyed by messageId) is bounded to prevent unbounded growth during sustained fault scenarios
 - Fault context is read once per tick (not per message) to avoid inconsistent behavior mid-batch
 
 ---
