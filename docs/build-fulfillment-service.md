@@ -114,8 +114,8 @@ The monitor detects starvation by joining `queue_metrics` for `payment-queue` wi
 
 ## Implementation Notes
 
-- Fulfillment runs at a slower tick rate than Payment (~150ms) — it is not the throughput-limiting step
-- Processing delay is sampled from a uniform distribution 30–80ms per message; this produces realistic-looking latency histograms
+- Fulfillment runs a goroutine driven by a `time.NewTicker` at ~150ms ticks — it is not the throughput-limiting step
+- Processing delay is sampled from a uniform distribution 30–80ms per message via `time.Sleep()`; this produces realistic-looking latency histograms
 - Declined payments count toward throughput (they were processed) but not as errors
 - The service tracks its own `idleTicks` counter: consecutive ticks with zero messages available. This is used by the monitor to distinguish "empty queue" from "service not running."
 

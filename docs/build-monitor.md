@@ -2,7 +2,7 @@
 
 ## Overview
 
-The monitor is a Node.js/TypeScript process that runs independently of the simulator. It reads from the shared SQLite database, detects anomalies, runs the correlation engine, writes incident records, and exposes an HTTP API for the dashboard.
+The monitor is a Go process that runs independently of the simulator. It reads from the shared SQLite database, detects anomalies, runs the correlation engine, writes incident records, and exposes an HTTP API for the dashboard.
 
 The monitor has no side effects on the simulation — it is read-only against the `service_metrics` and `queue_metrics` tables. It only writes to `incidents`.
 
@@ -11,24 +11,27 @@ The monitor has no side effects on the simulation — it is read-only against th
 ## Process Structure
 
 ```
-monitor/
-  src/
-    index.ts              -- entry point; starts polling loop and HTTP server
-    db.ts                 -- SQLite connection, query helpers
-    poller.ts             -- main polling loop
-    anomaly.ts            -- baseline windowing and threshold logic
-    correlator.ts         -- correlation engine
-    incidents.ts          -- incident creation, update, resolution
-    api/
-      routes.ts           -- Express router
-      sse.ts              -- SSE broadcaster
+internal/monitor/
+  poller.go         -- main polling ticker (2s interval via time.Ticker)
+  anomaly.go        -- baseline windowing and threshold logic
+  correlator.go     -- correlation engine
+  incidents.go      -- incident creation, update, resolution
+  api.go            -- net/http router and handler registration
+  sse.go            -- SSE broadcaster (tracks connected clients)
+
+internal/db/
+  db.go             -- SQLite connection (modernc.org/sqlite), query helpers
+  schema.go         -- CREATE TABLE statements and migration
+
+cmd/monitor/
+  main.go           -- entry point; wires up DB, starts poller and HTTP server
 ```
 
 ---
 
 ## Polling Loop
 
-The polling loop is the heartbeat of the monitor. It runs every **2 seconds** via `setInterval`.
+The polling loop is the heartbeat of the monitor. It runs every **2 seconds** via `time.NewTicker(2 * time.Second)` in its own goroutine.
 
 ### Each tick:
 
@@ -72,16 +75,16 @@ The baseline is only considered valid when `count >= 10` (about 20 seconds of da
 
 ### `AnomalySignal` Shape
 
-```typescript
-interface AnomalySignal {
-  ts:           number        // Unix ms of the metric row that triggered this
-  service?:     string        // for service metrics
-  queue?:       string        // for queue metrics
-  metric:       string        // 'error_rate' | 'p99_latency' | 'throughput' | 'queue_depth' | 'dlq_depth'
-  value:        number        // the anomalous value
-  baseline:     number        // the mean at time of detection
-  deviation:    number        // (value - baseline) / stddev
-  direction:    'high' | 'low'
+```go
+type AnomalySignal struct {
+    TS        int64   `json:"ts"`        // Unix ms of the metric row that triggered this
+    Service   string  `json:"service"`   // for service metrics (empty if queue signal)
+    Queue     string  `json:"queue"`     // for queue metrics (empty if service signal)
+    Metric    string  `json:"metric"`    // "error_rate" | "p99_latency" | "throughput" | "queue_depth" | "dlq_depth"
+    Value     float64 `json:"value"`     // the anomalous value
+    Baseline  float64 `json:"baseline"`  // the mean at time of detection
+    Deviation float64 `json:"deviation"` // (value - baseline) / stddev
+    Direction string  `json:"direction"` // "high" | "low"
 }
 ```
 
@@ -140,16 +143,16 @@ If a downstream service has no active signal but its upstream is failing and suf
 
 ### `CorrelatedEvent` Shape
 
-```typescript
-interface CorrelatedEvent {
-  startTs:      number
-  rootService:  string
-  rootCause:    string          // human-readable
-  faultType?:   string          // if matched from fault_events
-  severity:     'warning' | 'critical'
-  affected:     string[]
-  signals:      AnomalySignal[]
-  timeline:     TimelineEvent[]
+```go
+type CorrelatedEvent struct {
+    StartTS     int64          `json:"startTs"`
+    RootService string         `json:"rootService"`
+    RootCause   string         `json:"rootCause"`   // human-readable
+    FaultType   string         `json:"faultType"`   // empty if not matched from fault_events
+    Severity    string         `json:"severity"`    // "warning" | "critical"
+    Affected    []string       `json:"affected"`
+    Signals     []AnomalySignal `json:"signals"`
+    Timeline    []TimelineEvent `json:"timeline"`
 }
 ```
 
@@ -173,7 +176,7 @@ Full schema is in [`architecture.md`](architecture.md#sqlite-schema), but the ke
 
 ## API Routes
 
-The monitor runs an Express server on port **3001**.
+The monitor runs a `net/http` server on port **3001**.
 
 ### `GET /api/state`
 

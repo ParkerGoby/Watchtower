@@ -118,7 +118,7 @@ The Order Service does **not** directly write `queue_metrics` — the queue obje
 
 ## Implementation Notes
 
-- The service runs as a class with a `start()` / `stop()` lifecycle and a `tick()` method that is called by `setInterval` every ~200ms (simulating 5 req/s)
+- The service runs as a Go struct with a goroutine driven by a `time.NewTicker` at ~200ms intervals (simulating 5 req/s). Lifecycle is controlled via a `context.Context` — cancelling the context stops the goroutine cleanly.
 - Processing rate is configurable at startup; the default is tuned so that `order-queue` stays near empty under normal load
 - Internal metrics are accumulated in memory between SQLite writes to avoid a DB write on every message
 - The `traceId` field is a UUID generated at the API Gateway and passed through the entire message chain — this is what allows the correlation engine to link a fulfillment failure back to a specific order
