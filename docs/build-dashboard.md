@@ -2,7 +2,7 @@
 
 ## Overview
 
-The dashboard is a Next.js 14+ application (App Router) that renders real-time system state from the monitor's HTTP/SSE API. It is the primary user-facing surface of Watchtower and the thing an evaluator will interact with during a demo.
+The dashboard is a Next.js 14+ application (App Router) that renders real-time system state from the monitor's HTTP/SSE API. It is the primary user-facing surface of Monitower and the thing an evaluator will interact with during a demo.
 
 Design principles:
 - **Dense but readable** — show everything relevant without requiring navigation
@@ -30,7 +30,7 @@ The SSE stream delivers a full state snapshot every 2 seconds and an immediate `
 **Implementation pattern:**
 
 ```typescript
-// hooks/useWatchtowerState.ts
+// hooks/useMonitowerState.ts
 useEffect(() => {
   const es = new EventSource('/api/events/stream')
   es.addEventListener('state', (e) => setState(JSON.parse(e.data)))
@@ -90,7 +90,7 @@ components/
     SystemStatusBar.tsx    -- top bar with overall system health, uptime, active faults
 
 hooks/
-  useWatchtowerState.ts    -- SSE connection, state management
+  useMonitowerState.ts    -- SSE connection, state management
   useMetricHistory.ts      -- fetches metric history for sparkline data
 ```
 
@@ -236,7 +236,7 @@ Shown only when a fault is active:
 - Relative time since injection ("14s ago")
 - "Stop Fault" button that calls `POST /api/faults/stop`
 
-The active fault state is derived from `useWatchtowerState` — the SSE `state` event includes `activeFaults: string[]`. No separate polling needed.
+The active fault state is derived from `useMonitowerState` — the SSE `state` event includes `activeFaults: string[]`. No separate polling needed.
 
 ---
 
@@ -245,12 +245,12 @@ The active fault state is derived from `useWatchtowerState` — the SSE `state` 
 A full-width bar at the top of the page:
 
 ```
-● Watchtower    All systems healthy    5 services    4 queues    ↑ 2m 34s
+● Monitower    All systems healthy    5 services    4 queues    ↑ 2m 34s
 ```
 
 When a fault is active or an incident exists:
 ```
-⚠ Watchtower    1 active incident    Cascading Failure active    ↑ 4m 12s
+⚠ Monitower    1 active incident    Cascading Failure active    ↑ 4m 12s
 ```
 
 Color transitions: green → amber → red based on the most severe active incident or active fault.

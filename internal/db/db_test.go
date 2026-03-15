@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/parkerg/watchtower/internal/db"
+	"github.com/parkerg/monitower/internal/db"
 )
 
 func TestOpen_CreatesSchema(t *testing.T) {

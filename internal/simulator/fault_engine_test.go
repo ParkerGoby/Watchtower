@@ -6,13 +6,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/parkerg/watchtower/internal/db"
-	"github.com/parkerg/watchtower/internal/simulator"
+	"github.com/parkerg/monitower/internal/db"
+	"github.com/parkerg/monitower/internal/simulator"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	f, err := os.CreateTemp("", "watchtower-test-*.db")
+	f, err := os.CreateTemp("", "monitower-test-*.db")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}

@@ -1,4 +1,4 @@
-module github.com/parkerg/watchtower
+module github.com/parkerg/monitower
 
 go 1.24.0
 

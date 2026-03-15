@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkerg/watchtower/internal/simulator"
+	"github.com/parkerg/monitower/internal/simulator"
 )
 
 // OrderMessage mirrors the JSON shape emitted by the Order Service.

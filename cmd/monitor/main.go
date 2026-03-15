@@ -6,13 +6,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/parkerg/watchtower/internal/db"
+	"github.com/parkerg/monitower/internal/db"
 )
 
 func main() {
-	dbPath := os.Getenv("WATCHTOWER_DB")
+	dbPath := os.Getenv("MONITOWER_DB")
 	if dbPath == "" {
-		dbPath = "watchtower.db"
+		dbPath = "monitower.db"
 	}
 
 	conn, err := db.Open(dbPath)

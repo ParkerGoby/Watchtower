@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working in this
 
 ## Project Overview
 
-Watchtower is a full-stack AWS microservice monitoring tool with a built-in fault simulation environment. It models a realistic e-commerce order pipeline and demonstrates how failure propagates, correlates, and resolves across distributed services. There is no real AWS infrastructure — everything is simulated in-process.
+Monitower is a full-stack AWS microservice monitoring tool with a built-in fault simulation environment. It models a realistic e-commerce order pipeline and demonstrates how failure propagates, correlates, and resolves across distributed services. There is no real AWS infrastructure — everything is simulated in-process.
 
 **Status:** The project is in the planning phase. All implementation specs live in `docs/`. No source code exists yet. Build in the order: simulator services → monitor → dashboard.
 
@@ -15,7 +15,7 @@ Watchtower is a full-stack AWS microservice monitoring tool with a built-in faul
 ## Repo Layout
 
 ```
-watchtower/
+monitower/
   cmd/
     simulator/main.go   -- simulator entry point
     monitor/main.go     -- monitor entry point
@@ -40,7 +40,7 @@ The Go module root is the repo root. `cmd/simulator` and `cmd/monitor` are the t
 |-------|------------|
 | Simulator & Monitor | Go 1.22+, `modernc.org/sqlite` (pure Go, no CGO) |
 | Frontend | Next.js 14+, TypeScript, Tailwind CSS, Recharts |
-| Database | SQLite (`watchtower.db`) — shared between simulator and monitor |
+| Database | SQLite (`monitower.db`) — shared between simulator and monitor |
 | Real-time | Server-Sent Events (SSE) — monitor pushes state snapshots every 2s |
 | Package manager | pnpm (dashboard only) |
 
@@ -115,7 +115,7 @@ Order Service → [order-queue] → Payment Service → [payment-queue] → Fulf
 
 Each service is a Go goroutine that writes metrics to SQLite every 2–3 seconds. The monitor runs a ticker every 2 seconds, reads metrics, runs anomaly detection + correlation, and updates the `incidents` table. The dashboard connects to the monitor via SSE.
 
-**IPC is file-based:** simulator and monitor communicate exclusively through `watchtower.db`. The monitor is entirely read-only against `service_metrics` and `queue_metrics`.
+**IPC is file-based:** simulator and monitor communicate exclusively through `monitower.db`. The monitor is entirely read-only against `service_metrics` and `queue_metrics`.
 
 ### SQLite Schema (defined in `internal/db/`)
 
@@ -148,7 +148,7 @@ The dashboard proxies both APIs through Next.js Route Handlers to avoid CORS.
 
 ### Dashboard Layout
 
-Single-page App Router app. Three-column layout at `lg` breakpoint: service health grid | incident panel | fault injector. Real-time state managed via a single `useWatchtowerState` hook that subscribes to the SSE stream.
+Single-page App Router app. Three-column layout at `lg` breakpoint: service health grid | incident panel | fault injector. Real-time state managed via a single `useMonitowerState` hook that subscribes to the SSE stream.
 
 ---
 
