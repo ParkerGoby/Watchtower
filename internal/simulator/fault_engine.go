@@ -12,11 +12,12 @@ import (
 type FaultType string
 
 const (
-	FaultPoisonPill         FaultType = "poison-pill"
-	FaultDownstreamTimeout  FaultType = "downstream-timeout"
-	FaultTrafficSpike       FaultType = "traffic-spike"
-	FaultCascadingFailure   FaultType = "cascading-failure"
-	FaultIntermittentErrors FaultType = "intermittent-errors"
+	FaultPoisonPill          FaultType = "poison-pill"
+	FaultDownstreamTimeout   FaultType = "downstream-timeout"
+	FaultTrafficSpike        FaultType = "traffic-spike"
+	FaultCascadingFailure    FaultType = "cascading-failure"
+	FaultIntermittentErrors  FaultType = "intermittent-errors"
+	FaultNotificationFailure FaultType = "notification-failure"
 )
 
 // FaultContext describes how a service should behave given the active faults.
@@ -128,6 +129,10 @@ func apply(ctx *FaultContext, fault FaultType, service string) {
 		}
 	case FaultIntermittentErrors:
 		ctx.ErrorProbability = 0.15
+	case FaultNotificationFailure:
+		if service == "notification" {
+			ctx.ErrorProbability = 1.0
+		}
 	}
 }
 
