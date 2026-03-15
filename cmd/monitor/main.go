@@ -4,9 +4,11 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/parkerg/monitower/internal/db"
+	"github.com/parkerg/monitower/internal/monitor"
 )
 
 func main() {
@@ -21,6 +23,16 @@ func main() {
 	}
 	defer conn.Close()
 
-	log.Println("monitor ready — not yet implemented")
-	select {} // block until interrupted
+	broadcaster := monitor.NewSSEBroadcaster()
+	poller := monitor.NewPoller(conn, broadcaster)
+	incStore := monitor.NewIncidentStore(conn)
+	server := monitor.NewServer(poller, incStore, broadcaster)
+
+	go poller.Start()
+
+	addr := ":3001"
+	log.Printf("monitor listening on %s", addr)
+	if err := http.ListenAndServe(addr, server.Handler()); err != nil {
+		log.Fatalf("http server: %v", err)
+	}
 }
