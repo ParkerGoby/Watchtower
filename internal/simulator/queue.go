@@ -25,6 +25,9 @@ type Queue struct {
 
 	mu          sync.Mutex
 	lastFlushAt time.Time
+
+	subsMu      sync.Mutex
+	subscribers []*Queue
 }
 
 // NewQueue creates a queue with the given name and starts the background
@@ -44,14 +47,40 @@ func NewQueue(name string, isDLQ bool, conn *sql.DB, ctx context.Context) *Queue
 
 // Send enqueues a message. It returns immediately if the buffer is not full.
 // If the buffer is full, Send blocks until space is available or the context
-// is cancelled.
+// is cancelled. Any registered fan-out subscribers also receive a copy.
 func (q *Queue) Send(msg string) {
+	var sent bool
 	select {
 	case q.ch <- msg:
 		q.depth.Add(1)
 		q.enqueued.Add(1)
+		sent = true
 	case <-q.ctx.Done():
 	}
+
+	if !sent {
+		return
+	}
+
+	q.subsMu.Lock()
+	subs := make([]*Queue, len(q.subscribers))
+	copy(subs, q.subscribers)
+	q.subsMu.Unlock()
+
+	for _, sub := range subs {
+		sub.Send(msg)
+	}
+}
+
+// Subscribe creates a new Queue that receives a copy of every message sent to q.
+// The returned queue has its own depth counter, metrics writer, and read pointer,
+// modelling a separate SNS → SQS fan-out subscription.
+func (q *Queue) Subscribe(name string, isDLQ bool, db *sql.DB, ctx context.Context) *Queue {
+	sub := NewQueue(name, isDLQ, db, ctx)
+	q.subsMu.Lock()
+	q.subscribers = append(q.subscribers, sub)
+	q.subsMu.Unlock()
+	return sub
 }
 
 // Receive dequeues the next message. Returns (msg, true) if a message is

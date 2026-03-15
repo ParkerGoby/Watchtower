@@ -34,10 +34,13 @@ func main() {
 	orderQueue := simulator.NewQueue("order-queue", false, conn, ctx)
 	paymentQueue := simulator.NewQueue("payment-queue", false, conn, ctx)
 	paymentDLQ := simulator.NewQueue("payment-dlq", true, conn, ctx)
+	notifSub := paymentQueue.Subscribe("notification-payment-sub", false, conn, ctx)
+	notifDLQ := simulator.NewQueue("notification-dlq", true, conn, ctx)
 
 	simulator.NewOrderService(orderQueue, engine, conn, ctx)
 	simulator.NewPaymentService(orderQueue, paymentQueue, paymentDLQ, engine, conn, ctx)
 	simulator.NewFulfillmentService(paymentQueue, engine, conn, ctx)
+	simulator.NewNotificationService(notifSub, notifDLQ, engine, conn, ctx)
 
 	log.Println("simulator started — HTTP API (:3002) not yet implemented")
 	<-ctx.Done()
