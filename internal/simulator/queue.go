@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -21,17 +22,21 @@ type Queue struct {
 	enqueued atomic.Int64
 	dequeued atomic.Int64
 	ctx      context.Context
+
+	mu          sync.Mutex
+	lastFlushAt time.Time
 }
 
 // NewQueue creates a queue with the given name and starts the background
 // metrics writer. isDLQ=true sets dlq=1 in every metrics row.
 func NewQueue(name string, isDLQ bool, conn *sql.DB, ctx context.Context) *Queue {
 	q := &Queue{
-		name:  name,
-		isDLQ: isDLQ,
-		ch:    make(chan string, queueBufferSize),
-		db:    conn,
-		ctx:   ctx,
+		name:        name,
+		isDLQ:       isDLQ,
+		ch:          make(chan string, queueBufferSize),
+		db:          conn,
+		ctx:         ctx,
+		lastFlushAt: time.Now(),
 	}
 	go q.runMetricsWriter()
 	return q
@@ -70,9 +75,36 @@ func (q *Queue) Receive() (string, bool) {
 	}
 }
 
+// TryReceive dequeues a message without blocking.
+// Returns ("", false) immediately if no message is available.
+func (q *Queue) TryReceive() (string, bool) {
+	select {
+	case msg := <-q.ch:
+		q.depth.Add(-1)
+		q.dequeued.Add(1)
+		return msg, true
+	default:
+		return "", false
+	}
+}
+
 // Depth returns the current number of messages in the queue.
 func (q *Queue) Depth() int {
 	return int(q.depth.Load())
+}
+
+// ForceWriteMetrics immediately flushes accumulated counters to queue_metrics
+// using the actual elapsed time since the last flush. Intended for tests so
+// they don't have to wait for the background timer to fire.
+func (q *Queue) ForceWriteMetrics() {
+	now := time.Now()
+	q.mu.Lock()
+	elapsed := now.Sub(q.lastFlushAt)
+	q.mu.Unlock()
+	if elapsed < time.Millisecond {
+		elapsed = time.Millisecond
+	}
+	q.writeMetrics(elapsed)
 }
 
 // runMetricsWriter writes a queue_metrics row every 2–3 seconds (jittered)
@@ -91,6 +123,10 @@ func (q *Queue) runMetricsWriter() {
 }
 
 func (q *Queue) writeMetrics(elapsed time.Duration) {
+	q.mu.Lock()
+	q.lastFlushAt = time.Now()
+	q.mu.Unlock()
+
 	elapsedSec := elapsed.Seconds()
 
 	enqueued := q.enqueued.Swap(0)

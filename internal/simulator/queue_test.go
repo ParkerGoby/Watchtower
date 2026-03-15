@@ -65,7 +65,7 @@ func TestQueue_Depth(t *testing.T) {
 	}
 }
 
-// 4. queue_metrics row is written within 3s (integration with real DB).
+// 4. ForceWriteMetrics produces a queue_metrics row immediately.
 func TestQueue_MetricsWritten(t *testing.T) {
 	conn := openTestDB(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,17 +73,13 @@ func TestQueue_MetricsWritten(t *testing.T) {
 
 	q := simulator.NewQueue("order-queue", false, conn, ctx)
 	q.Send("msg")
+	q.ForceWriteMetrics()
 
-	deadline := time.Now().Add(4 * time.Second)
-	for time.Now().Before(deadline) {
-		var count int
-		conn.QueryRow(`SELECT COUNT(*) FROM queue_metrics WHERE queue='order-queue'`).Scan(&count)
-		if count > 0 {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	var count int
+	conn.QueryRow(`SELECT COUNT(*) FROM queue_metrics WHERE queue='order-queue'`).Scan(&count)
+	if count == 0 {
+		t.Error("expected at least one queue_metrics row after ForceWriteMetrics")
 	}
-	t.Error("no queue_metrics row written within 4s")
 }
 
 // 5. enqueue_rate and dequeue_rate are non-negative after activity.
@@ -99,25 +95,21 @@ func TestQueue_Rates(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		q.Receive()
 	}
+	q.ForceWriteMetrics()
 
-	deadline := time.Now().Add(4 * time.Second)
-	for time.Now().Before(deadline) {
-		var enqRate, deqRate float64
-		err := conn.QueryRow(
-			`SELECT enqueue_rate, dequeue_rate FROM queue_metrics WHERE queue='order-queue' ORDER BY ts DESC LIMIT 1`,
-		).Scan(&enqRate, &deqRate)
-		if err == nil {
-			if enqRate < 0 {
-				t.Errorf("negative enqueue_rate: %f", enqRate)
-			}
-			if deqRate < 0 {
-				t.Errorf("negative dequeue_rate: %f", deqRate)
-			}
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	var enqRate, deqRate float64
+	err := conn.QueryRow(
+		`SELECT enqueue_rate, dequeue_rate FROM queue_metrics WHERE queue='order-queue' ORDER BY ts DESC LIMIT 1`,
+	).Scan(&enqRate, &deqRate)
+	if err != nil {
+		t.Fatalf("no queue_metrics row found: %v", err)
 	}
-	t.Error("no queue_metrics row written within 4s")
+	if enqRate < 0 {
+		t.Errorf("negative enqueue_rate: %f", enqRate)
+	}
+	if deqRate < 0 {
+		t.Errorf("negative dequeue_rate: %f", deqRate)
+	}
 }
 
 // 6. DLQ queue has dlq=1 in metrics; SendToDLQ increases DLQ depth.
@@ -133,21 +125,18 @@ func TestQueue_DLQ(t *testing.T) {
 		t.Errorf("expected dlq depth=1, got %d", d)
 	}
 
-	deadline := time.Now().Add(4 * time.Second)
-	for time.Now().Before(deadline) {
-		var dlqFlag int
-		err := conn.QueryRow(
-			`SELECT dlq FROM queue_metrics WHERE queue='payment-dlq' ORDER BY ts DESC LIMIT 1`,
-		).Scan(&dlqFlag)
-		if err == nil {
-			if dlqFlag != 1 {
-				t.Errorf("expected dlq=1, got %d", dlqFlag)
-			}
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	dlq.ForceWriteMetrics()
+
+	var dlqFlag int
+	err := conn.QueryRow(
+		`SELECT dlq FROM queue_metrics WHERE queue='payment-dlq' ORDER BY ts DESC LIMIT 1`,
+	).Scan(&dlqFlag)
+	if err != nil {
+		t.Fatalf("no queue_metrics row found: %v", err)
 	}
-	t.Error("no queue_metrics row written for DLQ within 4s")
+	if dlqFlag != 1 {
+		t.Errorf("expected dlq=1, got %d", dlqFlag)
+	}
 }
 
 // 7. Context cancellation stops the metrics goroutine (no goroutine leak).

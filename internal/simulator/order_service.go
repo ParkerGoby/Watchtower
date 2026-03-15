@@ -47,24 +47,40 @@ type OrderService struct {
 	db     *sql.DB
 	ctx    context.Context
 
-	mu        sync.Mutex
-	enqueued  int
-	errors    int
-	totalReqs int
-	latencies []float64 // ms
+	mu          sync.Mutex
+	enqueued    int
+	errors      int
+	totalReqs   int
+	latencies   []float64 // ms
+	lastFlushAt time.Time
 }
 
 // NewOrderService creates an OrderService and starts its background goroutines.
 func NewOrderService(queue *Queue, engine *FaultEngine, db *sql.DB, ctx context.Context) *OrderService {
 	s := &OrderService{
-		queue:  queue,
-		engine: engine,
-		db:     db,
-		ctx:    ctx,
+		queue:       queue,
+		engine:      engine,
+		db:          db,
+		ctx:         ctx,
+		lastFlushAt: time.Now(),
 	}
 	go s.runTicker()
 	go s.runMetricsWriter()
 	return s
+}
+
+// ForceWriteMetrics immediately flushes accumulated counters to service_metrics
+// using the actual elapsed time since the last flush. Intended for tests so
+// they don't have to wait for the background timer to fire.
+func (s *OrderService) ForceWriteMetrics() {
+	now := time.Now()
+	s.mu.Lock()
+	elapsed := now.Sub(s.lastFlushAt)
+	s.mu.Unlock()
+	if elapsed < time.Millisecond {
+		elapsed = time.Millisecond
+	}
+	s.writeMetrics(elapsed)
 }
 
 // runTicker fires a processing tick every 200ms (~5 req/s).
@@ -155,6 +171,7 @@ func (s *OrderService) writeMetrics(elapsed time.Duration) {
 	s.errors = 0
 	s.totalReqs = 0
 	s.latencies = nil
+	s.lastFlushAt = time.Now()
 	s.mu.Unlock()
 
 	elapsedSec := elapsed.Seconds()
