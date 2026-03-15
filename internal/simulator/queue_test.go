@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkerg/watchtower/internal/simulator"
+	"github.com/parkerg/monitower/internal/simulator"
 )
 
 // 1. Send followed by Receive returns the same message.

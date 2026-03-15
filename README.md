@@ -1,14 +1,14 @@
-# Watchtower
+# Monitower
 
 A lightweight AWS microservice monitoring tool with a built-in fault simulation environment. Built to demonstrate what a production observability layer could look like — without requiring any real AWS infrastructure.
 
-Watchtower simulates a realistic e-commerce microservice topology, lets you inject named fault scenarios via a UI button, and shows you in real time how failures propagate, correlate, and resolve. The correlation engine infers root cause from metric signals and reconstructs a human-readable incident timeline.
+Monitower simulates a realistic e-commerce microservice topology, lets you inject named fault scenarios via a UI button, and shows you in real time how failures propagate, correlate, and resolve. The correlation engine infers root cause from metric signals and reconstructs a human-readable incident timeline.
 
 ---
 
 ## Why This Exists
 
-Most monitoring demos are either trivially simple (one service, one metric) or require a complex cloud environment to run. Watchtower is designed to hit a useful middle ground:
+Most monitoring demos are either trivially simple (one service, one metric) or require a complex cloud environment to run. Monitower is designed to hit a useful middle ground:
 
 - The simulated system is realistic enough to generate interesting failure modes
 - The fault scenarios are the actual failure patterns that matter in production (poison pills, cascading failures, DLQ saturation)
@@ -25,8 +25,8 @@ This project is intended as a portfolio demonstration for engineers evaluating d
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/watchtower.git
-cd watchtower
+git clone https://github.com/your-username/monitower.git
+cd monitower
 
 # Install dashboard dependencies
 pnpm install
@@ -69,7 +69,7 @@ The simulator starts automatically. Click **Inject Fault** in the dashboard to t
 |---|---|
 | Simulator & Monitor | Go 1.22+, `modernc.org/sqlite` (pure Go, no CGO) |
 | Frontend | Next.js 14+, TypeScript, Tailwind CSS |
-| Storage | SQLite (`watchtower.db`) — shared between simulator and monitor |
+| Storage | SQLite (`monitower.db`) — shared between simulator and monitor |
 | Charts | Recharts |
 | Real-time updates | Server-Sent Events (SSE) |
 | AWS SDK | In-process fakes (no real AWS required) |

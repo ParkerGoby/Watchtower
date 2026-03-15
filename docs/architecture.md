@@ -2,7 +2,7 @@
 
 ## Overview
 
-Watchtower is split into three components that run as separate processes but share a single SQLite database file:
+Monitower is split into three components that run as separate processes but share a single SQLite database file:
 
 | Component | Language | Role |
 |---|---|---|
@@ -49,7 +49,7 @@ The simulator and monitor are intentionally decoupled. The simulator's only job 
                              ▼
                     ┌─────────────────┐
                     │   SQLite DB     │
-                    │  watchtower.db  │
+                    │  monitower.db  │
                     └────────┬────────┘
                              │ reads
                ┌─────────────▼─────────────┐

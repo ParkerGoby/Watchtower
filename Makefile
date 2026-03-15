@@ -4,8 +4,8 @@
 dev:
 	@echo "Starting simulator, monitor, and dashboard..."
 	@trap 'kill 0' INT; \
-	  WATCHTOWER_DB=watchtower.db go run ./cmd/simulator & \
-	  WATCHTOWER_DB=watchtower.db go run ./cmd/monitor & \
+	  MONITOWER_DB=monitower.db go run ./cmd/simulator & \
+	  MONITOWER_DB=monitower.db go run ./cmd/monitor & \
 	  pnpm --filter dashboard dev & \
 	  wait
 
@@ -32,5 +32,5 @@ fmt:
 	gofmt -w .
 
 clean:
-	rm -f watchtower.db simulator monitor
+	rm -f monitower.db simulator monitor
 	pnpm --filter dashboard exec rm -rf .next

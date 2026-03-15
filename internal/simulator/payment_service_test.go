@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkerg/watchtower/internal/simulator"
+	"github.com/parkerg/monitower/internal/simulator"
 )
 
 // paymentMsg mirrors the JSON shape produced by the Payment Service.

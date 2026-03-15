@@ -1,5 +1,5 @@
 // Package simulator contains the service workers, queue implementations,
-// and fault engine that make up the Watchtower simulation environment.
+// and fault engine that make up the Monitower simulation environment.
 package simulator
 
 import (
