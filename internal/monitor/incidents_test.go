@@ -197,6 +197,50 @@ func TestIncidents_GetByID(t *testing.T) {
 	}
 }
 
+// TestIncidents_DLQSignalKeepsIncidentOpen verifies that a DLQ signal for
+// payment-dlq prevents the payment incident from resolving prematurely.
+// This guards against the alternating healthy/degraded bug where the DLQ
+// anomaly maps to the queue name ("payment-dlq") but the incident's Affected
+// list contains the owning service ("payment").
+func TestIncidents_DLQSignalKeepsIncidentOpen(t *testing.T) {
+	store := NewIncidentStore(openTestDB(t))
+	tracker := NewResolutionTracker()
+
+	ev := makeEvent("payment", "poison-pill")
+	ev.Affected = []string{"payment"}
+	_, _ = store.Reconcile([]CorrelatedEvent{ev})
+	actives, _ := store.ListActive()
+
+	// DLQ signal still active after fault stops (depth > 0).
+	dlqSig := AnomalySignal{
+		TS:     5000,
+		Queue:  "payment-dlq",
+		Metric: "dlq_depth",
+		Value:  3,
+		Direction: "high",
+	}
+
+	// Both cycles should NOT resolve — the DLQ owner (payment) is still anomalous.
+	toResolve := tracker.Check(actives, []AnomalySignal{dlqSig})
+	if len(toResolve) != 0 {
+		t.Fatalf("cycle 1: should not resolve while DLQ has depth, got %d to resolve", len(toResolve))
+	}
+	toResolve = tracker.Check(actives, []AnomalySignal{dlqSig})
+	if len(toResolve) != 0 {
+		t.Fatalf("cycle 2: should not resolve while DLQ has depth, got %d to resolve", len(toResolve))
+	}
+
+	// Once DLQ drains, incident should resolve after 2 clean cycles.
+	toResolve = tracker.Check(actives, nil)
+	if len(toResolve) != 0 {
+		t.Fatalf("clean cycle 1: should not resolve yet, got %d", len(toResolve))
+	}
+	toResolve = tracker.Check(actives, nil)
+	if len(toResolve) != 1 {
+		t.Fatalf("clean cycle 2: expected 1 resolution, got %d", len(toResolve))
+	}
+}
+
 func TestIncidents_GetByID_NotFound(t *testing.T) {
 	store := NewIncidentStore(openTestDB(t))
 	inc, err := store.GetByID(9999)

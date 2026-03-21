@@ -183,6 +183,8 @@ func NewResolutionTracker() *ResolutionTracker {
 // An incident resolves when it has had 0 active signals for 2 consecutive cycles.
 func (rt *ResolutionTracker) Check(actives []Incident, activeSignals []AnomalySignal) []int64 {
 	// Build set of currently anomalous services/queues.
+	// Queue signals are also attributed to their owning service so that a
+	// DLQ-backed incident doesn't resolve prematurely while the DLQ is non-empty.
 	anomalousServices := map[string]bool{}
 	for _, sig := range activeSignals {
 		if sig.Service != "" {
@@ -190,6 +192,9 @@ func (rt *ResolutionTracker) Check(actives []Incident, activeSignals []AnomalySi
 		}
 		if sig.Queue != "" {
 			anomalousServices[sig.Queue] = true
+			if owner, ok := queueOwner[sig.Queue]; ok {
+				anomalousServices[owner] = true
+			}
 		}
 	}
 
