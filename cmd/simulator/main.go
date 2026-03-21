@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -42,7 +43,18 @@ func main() {
 	simulator.NewFulfillmentService(paymentQueue, engine, conn, ctx)
 	simulator.NewNotificationService(notifSub, notifDLQ, engine, conn, ctx)
 
-	log.Println("simulator started — HTTP API (:3002) not yet implemented")
+	srv := &http.Server{
+		Addr:    ":3002",
+		Handler: simulator.NewSimulatorHandler(engine),
+	}
+	go func() {
+		log.Println("simulator HTTP API listening on :3002")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("simulator http: %v", err)
+		}
+	}()
+
 	<-ctx.Done()
 	log.Println("simulator shutting down")
+	srv.Close()
 }
